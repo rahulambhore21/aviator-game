@@ -155,7 +155,12 @@ export const useStore = create<Store>((set, get) => ({
     const { token } = get();
     if (!token) return;
 
-    const socket = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3002', {
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 
+                      (process.env.NODE_ENV === 'production' 
+                        ? 'https://aviator-game-lzz1.onrender.com' 
+                        : 'http://localhost:3002');
+
+    const socket = io(backendUrl, {
       auth: { token }
     });
 

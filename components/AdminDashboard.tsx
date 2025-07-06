@@ -111,18 +111,7 @@ export default function AdminDashboard() {
   if (!user?.isAdmin) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-white text-xl mb-4">Access Denied - Admin Only</div>
-          <div className="text-gray-400 text-sm mb-4">
-            Current user: {user?.email || 'Not logged in'}
-          </div>
-          <div className="text-gray-400 text-sm mb-4">
-            Admin status: {user?.isAdmin ? 'true' : 'false'}
-          </div>
-          <div className="text-gray-400 text-sm">
-            Please login with admin credentials: admin@crashgame.com / admin123
-          </div>
-        </div>
+        <div className="text-white text-xl">Access Denied - Admin Only</div>
       </div>
     );
   }
