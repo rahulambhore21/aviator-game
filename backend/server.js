@@ -1,0 +1,191 @@
+require('dotenv').config();
+const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
+const cors = require('cors');
+const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
+
+const authRoutes = require('./routes/auth');
+const gameRoutes = require('./routes/game');
+const adminRoutes = require('./routes/admin');
+const GameEngine = require('./gameEngine');
+const User = require('./models/User');
+const Bet = require('./models/Bet');
+
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+
+// Middleware
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  credentials: true
+}));
+app.use(express.json());
+
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/crashgame')
+  .then(() => console.log('🎯 Connected to MongoDB'))
+  .catch(err => console.error('❌ MongoDB connection error:', err));
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/game', gameRoutes);
+app.use('/api/admin', adminRoutes);
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Initialize game engine
+const gameEngine = new GameEngine(io);
+global.gameEngine = gameEngine; // Make it globally accessible for admin routes
+
+// Socket authentication middleware
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth.token;
+    if (!token) {
+      return next(new Error('No token provided'));
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+    const user = await User.findById(decoded.userId);
+    
+    if (!user) {
+      return next(new Error('User not found'));
+    }
+
+    socket.userId = user._id.toString();
+    socket.user = user;
+    next();
+  } catch (error) {
+    next(new Error('Authentication failed'));
+  }
+});
+
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log(`🔗 User ${socket.user.email} connected`);
+
+  // Send current game state to new connection
+  socket.emit('game-state', gameEngine.gameState);
+
+  // Handle bet placement
+  socket.on('place-bet', async (data) => {
+    try {
+      const { amount } = data;
+      const user = await User.findById(socket.userId);
+
+      if (!user || user.balance < amount) {
+        socket.emit('error', { message: 'Insufficient balance' });
+        return;
+      }
+
+      const result = gameEngine.placeBet(socket.userId, amount, socket.id);
+      
+      if (result.success) {
+        // Deduct balance
+        user.balance -= amount;
+        await user.save();
+
+        // Create bet record
+        const bet = new Bet({
+          user: user._id,
+          amount,
+          roundId: gameEngine.gameState.roundId,
+          status: 'active'
+        });
+        await bet.save();
+
+        socket.emit('bet-placed', { newBalance: user.balance });
+      } else {
+        socket.emit('error', { message: result.message });
+      }
+    } catch (error) {
+      console.error('Bet placement error:', error);
+      socket.emit('error', { message: 'Failed to place bet' });
+    }
+  });
+
+  // Handle cash out
+  socket.on('cash-out', async () => {
+    try {
+      const result = gameEngine.cashOut(socket.userId);
+      
+      if (result.success) {
+        const user = await User.findById(socket.userId);
+        user.balance += result.payout;
+        await user.save();
+
+        // Update bet record
+        await Bet.findOneAndUpdate(
+          { user: user._id, roundId: gameEngine.gameState.roundId, status: 'active' },
+          { 
+            status: 'cashed_out',
+            multiplier: result.multiplier,
+            payout: result.payout
+          }
+        );
+
+        socket.emit('cash-out-success', {
+          payout: result.payout,
+          multiplier: result.multiplier,
+          newBalance: user.balance
+        });
+      } else {
+        socket.emit('error', { message: result.message });
+      }
+    } catch (error) {
+      console.error('Cash out error:', error);
+      socket.emit('error', { message: 'Failed to cash out' });
+    }
+  });
+
+  // Admin socket events
+  socket.on('admin-start-round', () => {
+    // Only allow if user is admin
+    if (socket.user && socket.user.isAdmin) {
+      gameEngine.adminStartRound();
+      console.log(`Admin ${socket.user.email} started round manually`);
+    }
+  });
+
+  socket.on('admin-pause-round', () => {
+    if (socket.user && socket.user.isAdmin) {
+      gameEngine.adminPauseRound();
+      console.log(`Admin ${socket.user.email} paused round`);
+    }
+  });
+
+  socket.on('admin-set-crash', (crashPoint) => {
+    if (socket.user && socket.user.isAdmin) {
+      gameEngine.adminSetCrash(crashPoint);
+      console.log(`Admin ${socket.user.email} set manual crash point to ${crashPoint}`);
+    }
+  });
+
+  socket.on('admin-get-state', () => {
+    if (socket.user && socket.user.isAdmin) {
+      socket.emit('admin-state-update', gameEngine.getGameState());
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`❌ User ${socket.user.email} disconnected`);
+  });
+});
+
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🎮 Game engine initialized`);
+});
