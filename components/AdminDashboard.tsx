@@ -1,179 +1,244 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useStore } from '@/lib/store';
-import api from '@/lib/api';
 
-interface AdminStats {
-  totalUsers: number;
-  activeUsers: number;
-  totalBets: number;
-  totalVolume: number;
-  currentRound: {
-    id: string;
-    isActive: boolean;
-    betsCount: number;
-    totalVolume: number;
-  };
+interface Transaction {
+  id: string;
+  userId: string;
+  userEmail: string;
+  type: 'deposit' | 'withdrawal';
+  amount: number;
+  status: 'pending' | 'completed' | 'rejected';
+  timestamp: string;
+  paymentMethod?: string;
 }
 
 export default function AdminDashboard() {
-  const { user, socket } = useStore();
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [manualCrash, setManualCrash] = useState('');
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchStats();
+    fetchTransactions();
   }, []);
 
-  const fetchStats = async () => {
+  const fetchTransactions = async () => {
     try {
-      const response = await api.get('/admin/stats');
-      setStats(response.data);
+      // Mock transactions data - replace with real API call
+      setTransactions([
+        {
+          id: 'TXN-001',
+          userId: '1',
+          userEmail: 'user1@example.com',
+          type: 'deposit',
+          amount: 500,
+          status: 'pending',
+          timestamp: '2024-01-20 10:30:00',
+          paymentMethod: 'Credit Card'
+        },
+        {
+          id: 'TXN-002',
+          userId: '2',
+          userEmail: 'user2@example.com',
+          type: 'withdrawal',
+          amount: 200,
+          status: 'pending',
+          timestamp: '2024-01-20 09:15:00'
+        },
+        {
+          id: 'TXN-003',
+          userId: '1',
+          userEmail: 'user1@example.com',
+          type: 'deposit',
+          amount: 1000,
+          status: 'completed',
+          timestamp: '2024-01-19 14:22:00',
+          paymentMethod: 'Credit Card'
+        },
+        {
+          id: 'TXN-004',
+          userId: '3',
+          userEmail: 'user3@example.com',
+          type: 'withdrawal',
+          amount: 150,
+          status: 'rejected',
+          timestamp: '2024-01-19 11:45:00'
+        }
+      ]);
     } catch (error) {
-      console.error('Failed to fetch admin stats:', error);
+      console.error('Failed to fetch transactions:', error);
     }
   };
 
-  const startRound = () => {
-    if (socket) {
-      socket.emit('admin-start-round');
+  const handleTransactionUpdate = async (transactionId: string, status: 'completed' | 'rejected') => {
+    setLoading(true);
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Update transaction status
+      setTransactions(prev => 
+        prev.map(t => t.id === transactionId ? { ...t, status } : t)
+      );
+      
+      // In real app, make API call here:
+      // await api.put(`/admin/transactions/${transactionId}`, { status });
+      
+    } catch (error) {
+      console.error('Failed to update transaction:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const pauseRound = () => {
-    if (socket) {
-      socket.emit('admin-pause-round');
-    }
-  };
-
-  const setCrashPoint = () => {
-    const crashPoint = parseFloat(manualCrash);
-    if (socket && crashPoint > 1) {
-      socket.emit('admin-set-crash', { crashPoint });
-      setManualCrash('');
-    }
-  };
-
-  // Check if user is admin
-  if (!user || !user.isAdmin) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl">Access Denied - Admin Only</div>
-      </div>
-    );
-  }
+  const pendingTransactions = transactions.filter(t => t.status === 'pending');
+  const completedTransactions = transactions.filter(t => t.status !== 'pending');
 
   return (
-    <div className="min-h-screen bg-gray-900 p-6">
-      <div className="container mx-auto">
-        <div className="bg-gray-800 rounded-xl p-6 mb-6">
-          <h1 className="text-3xl font-bold text-white mb-4">🛠 Admin Dashboard</h1>
-          
-          {/* Quick Stats */}
-          {stats && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <div className="text-2xl font-bold text-blue-400">{stats.totalUsers}</div>
-                <div className="text-sm text-gray-400">Total Users</div>
-              </div>
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <div className="text-2xl font-bold text-green-400">{stats.activeUsers}</div>
-                <div className="text-sm text-gray-400">Active Users</div>
-              </div>
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <div className="text-2xl font-bold text-yellow-400">{stats.totalBets}</div>
-                <div className="text-sm text-gray-400">Total Bets</div>
-              </div>
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <div className="text-2xl font-bold text-purple-400">
-                  {stats.totalVolume.toLocaleString()}
-                </div>
-                <div className="text-sm text-gray-400">Total Volume</div>
+    <div className="container mx-auto p-6">
+      <div className="bg-gray-800 rounded-xl p-6">
+        <h1 className="text-3xl font-bold text-white mb-8 text-center">
+          🛠️ Admin Panel - Transaction Management
+        </h1>
+
+        {/* Pending Transactions - Priority Section */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-yellow-400">
+              ⏳ Pending Transactions ({pendingTransactions.length})
+            </h2>
+            <button
+              onClick={fetchTransactions}
+              className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
+            >
+              🔄 Refresh
+            </button>
+          </div>
+
+          {pendingTransactions.length === 0 ? (
+            <div className="bg-gray-700 rounded-lg p-8 text-center">
+              <div className="text-4xl mb-4">✅</div>
+              <div className="text-gray-300">No pending transactions</div>
+            </div>
+          ) : (
+            <div className="bg-gray-700 rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-600">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Transaction ID</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">User Email</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Type</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Amount</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Date & Time</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-600">
+                    {pendingTransactions.map((transaction) => (
+                      <tr key={transaction.id} className="hover:bg-gray-600/50">
+                        <td className="px-4 py-3 text-white text-sm font-mono">
+                          {transaction.id}
+                        </td>
+                        <td className="px-4 py-3 text-white">{transaction.userEmail}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center">
+                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                              transaction.type === 'deposit' 
+                                ? 'bg-green-600 text-white' 
+                                : 'bg-blue-600 text-white'
+                            }`}>
+                              {transaction.type === 'deposit' ? '⬇️ Deposit' : '⬆️ Withdrawal'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-white font-bold text-lg">
+                          {transaction.amount.toLocaleString()} coins
+                        </td>
+                        <td className="px-4 py-3 text-gray-300 text-sm">
+                          {transaction.timestamp}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleTransactionUpdate(transaction.id, 'completed')}
+                              disabled={loading}
+                              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white py-2 px-4 rounded text-sm font-medium transition-colors"
+                            >
+                              ✅ Approve
+                            </button>
+                            <button
+                              onClick={() => handleTransactionUpdate(transaction.id, 'rejected')}
+                              disabled={loading}
+                              className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white py-2 px-4 rounded text-sm font-medium transition-colors"
+                            >
+                              ❌ Reject
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
+        </div>
 
-          {/* Game Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Round Controls */}
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <h3 className="text-xl font-bold text-white mb-4">🎮 Round Controls</h3>
-              
-              {stats?.currentRound && (
-                <div className="mb-4 p-3 bg-gray-600 rounded">
-                  <div className="text-white">Current Round: {stats.currentRound.id}</div>
-                  <div className="text-sm text-gray-300">
-                    Status: {stats.currentRound.isActive ? '🟢 Active' : '🔴 Inactive'}
-                  </div>
-                  <div className="text-sm text-gray-300">
-                    Bets: {stats.currentRound.betsCount} | 
-                    Volume: {stats.currentRound.totalVolume}
-                  </div>
-                </div>
-              )}
+        {/* Transaction History */}
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-4">
+            📋 Transaction History ({completedTransactions.length})
+          </h2>
 
-              <div className="space-y-3">
-                <button
-                  onClick={startRound}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded transition-colors"
-                >
-                  🚀 Start Round
-                </button>
-                <button
-                  onClick={pauseRound}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded transition-colors"
-                >
-                  ⏸️ Pause Game
-                </button>
-              </div>
+          <div className="bg-gray-700 rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-600">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Transaction ID</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">User Email</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Type</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Amount</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Status</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Date & Time</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-600">
+                  {completedTransactions.map((transaction) => (
+                    <tr key={transaction.id} className="hover:bg-gray-600/50">
+                      <td className="px-4 py-3 text-white text-sm font-mono">
+                        {transaction.id}
+                      </td>
+                      <td className="px-4 py-3 text-white">{transaction.userEmail}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          transaction.type === 'deposit' 
+                            ? 'bg-green-600 text-white' 
+                            : 'bg-blue-600 text-white'
+                        }`}>
+                          {transaction.type === 'deposit' ? '⬇️ Deposit' : '⬆️ Withdrawal'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-white font-bold">
+                        {transaction.amount.toLocaleString()} coins
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          transaction.status === 'completed' 
+                            ? 'bg-green-600 text-white' 
+                            : 'bg-red-600 text-white'
+                        }`}>
+                          {transaction.status === 'completed' ? '✅ Approved' : '❌ Rejected'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-300 text-sm">
+                        {transaction.timestamp}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-
-            {/* Manual Crash Control */}
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <h3 className="text-xl font-bold text-white mb-4">💥 Manual Crash</h3>
-              
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm text-gray-300 mb-2">
-                    Set Crash Point (1.0 - 100.0)
-                  </label>
-                  <input
-                    type="number"
-                    value={manualCrash}
-                    onChange={(e) => setManualCrash(e.target.value)}
-                    placeholder="e.g., 2.5"
-                    step="0.1"
-                    min="1"
-                    max="100"
-                    className="w-full px-3 py-2 bg-gray-600 text-white rounded border border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <button
-                  onClick={setCrashPoint}
-                  disabled={!manualCrash || parseFloat(manualCrash) < 1}
-                  className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white py-2 px-4 rounded transition-colors"
-                >
-                  🎯 Set Crash Point
-                </button>
-              </div>
-
-              <div className="mt-4 text-sm text-gray-400">
-                ⚠️ Use this to manually set when the next round will crash. 
-                Leave empty for random crash points.
-              </div>
-            </div>
-          </div>
-
-          {/* Refresh Stats */}
-          <div className="mt-6">
-            <button
-              onClick={fetchStats}
-              className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
-            >
-              🔄 Refresh Stats
-            </button>
           </div>
         </div>
       </div>

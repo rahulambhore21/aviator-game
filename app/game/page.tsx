@@ -1,19 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
-import AuthForm from '@/components/AuthForm';
 import Header from '@/components/Header';
 import GameChart from '@/components/GameChart';
 import BettingPanel from '@/components/BettingPanel';
 import CountdownTimer from '@/components/CountdownTimer';
-import ToastNotifications from '@/components/ToastNotifications';
 import RecentCrashes from '@/components/RecentCrashes';
+import { useState } from 'react';
 
-export default function GameDashboard() {
+export default function GamePage() {
   const { user, gameState } = useStore();
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const router = useRouter();
   const [bettingCount, setBettingCount] = useState(247);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!user) {
+      router.push('/');
+    }
+  }, [user, router]);
 
   // Animate betting count based on game state
   useEffect(() => {
@@ -42,25 +49,11 @@ export default function GameDashboard() {
     }
   }, [gameState.bettingPhase, gameState.isActive]);
 
+  // Don't render anything if user is not logged in (while redirecting)
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-900">
-        <Header />
-        
-        {/* Show Recent Crashes even when not logged in */}
-        <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
-          <div className="max-w-4xl mx-auto">
-            <RecentCrashes />
-          </div>
-        </div>
-        
-        <div className="container mx-auto px-4 py-8">
-          <AuthForm 
-            mode={authMode} 
-            onToggle={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} 
-          />
-        </div>
-        <ToastNotifications />
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-white">Redirecting...</div>
       </div>
     );
   }
@@ -76,7 +69,7 @@ export default function GameDashboard() {
           <div className="order-2 xl:order-1 space-y-4">
             {/* Current Round Bets */}
             <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4">
-              <h3 className="text-lg font-bold text-white mb-4">� Current Round Bets</h3>
+              <h3 className="text-lg font-bold text-white mb-4">🎲 Current Round Bets</h3>
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {/* Example bets with encrypted names */}
                 {[
@@ -137,32 +130,6 @@ export default function GameDashboard() {
             <BettingPanel />
           </div>
 
-        </div>
-      </div>
-
-      <ToastNotifications />
-      
-      {/* Bottom Right Corner - Minimalist Player Count */}
-      <div className="fixed bottom-4 right-4 z-40 bg-gray-800/90 backdrop-blur-sm rounded-lg p-2 border border-gray-700/50 shadow-lg w-24">
-        <div className="flex items-center gap-2">
-          {/* Profile Photos */}
-          <div className="flex -space-x-1">
-            {[
-              { bg: 'bg-blue-500' },
-              { bg: 'bg-green-500' },
-              { bg: 'bg-purple-500' },
-            ].map((profile, index) => (
-              <div 
-                key={index} 
-                className={`w-4 h-4 ${profile.bg} rounded-full border border-gray-700`}
-              />
-            ))}
-          </div>
-          
-          {/* Just the Number */}
-          <div className="text-xs font-medium text-gray-300">
-            {bettingCount}
-          </div>
         </div>
       </div>
     </div>

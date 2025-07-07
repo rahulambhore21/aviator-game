@@ -8,17 +8,16 @@ export default function GameChart() {
   const { multiplier, isActive, crashed, crashPoint } = gameState;
   const [multiplierHistory, setMultiplierHistory] = useState<number[]>([]);
 
-  // Track multiplier history for chart line
   useEffect(() => {
     if (isActive && !crashed) {
-      setMultiplierHistory(prev => [...prev.slice(-50), multiplier]); // Keep last 50 points
+      setMultiplierHistory(prev => [...prev.slice(-50), multiplier]);
     } else if (gameState.bettingPhase) {
-      setMultiplierHistory([]); // Reset for new round
+      setMultiplierHistory([]);
     }
   }, [multiplier, isActive, crashed, gameState.bettingPhase]);
 
   const getChartColor = () => {
-    if (crashed) return 'text-blue-400'; // Changed from red to blue for plane gone
+    if (crashed) return 'text-blue-400';
     if (multiplier > 5) return 'text-purple-400';
     if (multiplier > 3) return 'text-blue-400';
     if (multiplier > 2) return 'text-green-400';
@@ -27,7 +26,7 @@ export default function GameChart() {
   };
 
   const getGradientColor = () => {
-    if (crashed) return 'from-blue-500/40 via-blue-400/20 to-transparent'; // Changed from red to blue
+    if (crashed) return 'from-blue-500/40 via-blue-400/20 to-transparent';
     if (multiplier > 5) return 'from-purple-500/40 via-purple-400/20 to-transparent';
     if (multiplier > 3) return 'from-blue-500/40 via-blue-400/20 to-transparent';
     if (multiplier > 2) return 'from-green-500/40 via-green-400/20 to-transparent';
@@ -36,30 +35,38 @@ export default function GameChart() {
   };
 
   const getPlaneTrailColor = () => {
-    if (multiplier > 5) return 'rgba(168, 85, 247, 0.4)'; // Purple
-    if (multiplier > 3) return 'rgba(59, 130, 246, 0.4)'; // Blue
-    if (multiplier > 2) return 'rgba(34, 197, 94, 0.4)'; // Green
-    if (multiplier > 1) return 'rgba(234, 179, 8, 0.4)'; // Yellow
-    return 'rgba(156, 163, 175, 0.4)'; // Gray
+    if (multiplier > 5) return 'rgba(168, 85, 247, 0.4)';
+    if (multiplier > 3) return 'rgba(59, 130, 246, 0.4)';
+    if (multiplier > 2) return 'rgba(34, 197, 94, 0.4)';
+    if (multiplier > 1) return 'rgba(234, 179, 8, 0.4)';
+    return 'rgba(156, 163, 175, 0.4)';
   };
+
+  const playSound = (type: 'crash' | 'cashout') => {
+    const audio = new Audio(`/sounds/${type}.mp3`);
+    audio.volume = 0.3;
+    audio.play().catch(() => {
+      // Ignore audio errors if files don't exist
+    });
+  };
+
+  useEffect(() => {
+    if (crashed) playSound('crash');
+  }, [crashed]);
+
+  useEffect(() => {
+    if (!crashed && currentBet && !currentBet.active) {
+      playSound('cashout');
+    }
+  }, [currentBet?.active]);
 
   return (
     <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl p-4 sm:p-6 relative overflow-hidden border border-gray-700 shadow-2xl">
-      {/* Add CSS animation for plane flying away */}
       <style jsx>{`
         @keyframes flyAway {
-          0% { 
-            transform: translate(-50%, 50%) scale(1) rotate(0deg);
-            opacity: 0.8;
-          }
-          50% { 
-            transform: translate(200%, -100%) scale(0.5) rotate(15deg);
-            opacity: 0.4;
-          }
-          100% { 
-            transform: translate(400%, -200%) scale(0.2) rotate(30deg);
-            opacity: 0;
-          }
+          0% { transform: translate(-50%, 50%) scale(1) rotate(0deg); opacity: 0.8; }
+          50% { transform: translate(200%, -100%) scale(0.5) rotate(15deg); opacity: 0.4; }
+          100% { transform: translate(400%, -200%) scale(0.2) rotate(30deg); opacity: 0; }
         }
         @keyframes fadeInOut {
           0%, 100% { opacity: 0.3; }
@@ -67,10 +74,8 @@ export default function GameChart() {
         }
       `}</style>
 
-      {/* Animated Background */}
       <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-green-500/5 animate-pulse"></div>
-      
-      {/* Grid Pattern */}
+
       <div className="absolute inset-0 opacity-20">
         <div className="grid grid-cols-12 grid-rows-8 h-full w-full">
           {Array.from({ length: 96 }).map((_, i) => (
@@ -210,6 +215,30 @@ export default function GameChart() {
           )}
         </div>
       )}
+
+      {/* Player Count Widget - Bottom Right Corner */}
+      <div className="absolute bottom-4 right-4 z-30 bg-gray-800/90 backdrop-blur-sm rounded-lg p-2 border border-gray-700/50 shadow-lg w-20">
+        <div className="flex items-center gap-2">
+          {/* Profile Photos */}
+          <div className="flex -space-x-1">
+            {[
+              { bg: 'bg-blue-500' },
+              { bg: 'bg-green-500' },
+              { bg: 'bg-purple-500' },
+            ].map((profile, index) => (
+              <div 
+                key={index} 
+                className={`w-3 h-3 ${profile.bg} rounded-full border border-gray-700`}
+              />
+            ))}
+          </div>
+          
+          {/* Player Count */}
+          <div className="text-xs font-medium text-gray-300">
+            247
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
