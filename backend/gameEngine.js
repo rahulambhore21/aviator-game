@@ -5,7 +5,7 @@ class GameEngine {
     this.io = io;
     this.gameState = {
       isActive: false,
-      multiplier: 0.00,
+      multiplier: 1.00,
       crashed: false,
       roundId: null,
       bettingPhase: true,
@@ -39,7 +39,7 @@ class GameEngine {
   startBettingPhase() {
     this.gameState = {
       isActive: false,
-      multiplier: 0.00,
+      multiplier: 1.00,
       crashed: false,
       roundId: `round_${Date.now()}`,
       bettingPhase: true,
@@ -67,7 +67,7 @@ class GameEngine {
       ...this.gameState,
       isActive: true,
       bettingPhase: false,
-      multiplier: 0.00,
+      multiplier: 1.00,
     };
 
     this.io.emit('game-state', this.gameState);
@@ -185,17 +185,6 @@ class GameEngine {
 
   adminSetCrash(crashPoint) {
     this.manualCrashPoint = crashPoint;
-  }
-
-  // Get current game state for admin
-  getGameState() {
-    return {
-      ...this.gameState,
-      crashPoint: this.crashPoint,
-      activeBetsCount: this.activeBets.size,
-      recentWinners: this.recentWinners.slice(0, 10),
-      history: this.history.slice(0, 10)
-    };
   }
 }
 

@@ -23,15 +23,24 @@ export default function AuthForm({ mode, onToggle }: AuthFormProps) {
     setError('');
 
     try {
-      const response = mode === 'login' 
-        ? await authAPI.login({ email, password })
-        : await authAPI.register({ email, password });
+      let response;
+      if (mode === 'login') {
+        response = await authAPI.login({ email, password });
+      } else {
+        response = await authAPI.register({ email, password });
+      }
 
-      setUser(response.user);
-      setToken(response.token);
-      initSocket();
+      // Check if response has the expected structure
+      if (response && response.user && response.token) {
+        setUser(response.user);
+        setToken(response.token);
+        initSocket();
+      } else {
+        throw new Error('Invalid response from server');
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Something went wrong');
+      console.error('Auth error:', err);
+      setError(err.response?.data?.message || err.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -59,6 +68,7 @@ export default function AuthForm({ mode, onToggle }: AuthFormProps) {
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter your email"
               required
+              disabled={loading}
             />
           </div>
 
@@ -73,7 +83,12 @@ export default function AuthForm({ mode, onToggle }: AuthFormProps) {
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter your password"
               required
+              minLength={6}
+              disabled={loading}
             />
+            {mode === 'register' && (
+              <p className="text-xs text-gray-400 mt-1">Password must be at least 6 characters</p>
+            )}
           </div>
 
           {error && (

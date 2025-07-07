@@ -6,7 +6,6 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "build": "npm install",
     "setup": "node setup.js"
   },
   "dependencies": {
@@ -20,16 +19,5 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/rahulambhore21/aviator-game-backend.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/rahulambhore21/aviator-game-backend/issues"
-  },
-  "homepage": "https://github.com/rahulambhore21/aviator-game-backend#readme"
+  }
 }

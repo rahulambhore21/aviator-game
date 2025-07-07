@@ -155,12 +155,7 @@ export const useStore = create<Store>((set, get) => ({
     const { token } = get();
     if (!token) return;
 
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 
-                      (process.env.NODE_ENV === 'production' 
-                        ? 'https://aviator-game-lzz1.onrender.com' 
-                        : 'http://localhost:3002');
-
-    const socket = io(backendUrl, {
+    const socket = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3002', {
       auth: { token }
     });
 
@@ -180,7 +175,7 @@ export const useStore = create<Store>((set, get) => ({
 
     socket.on('game-crashed', (crashPoint: number) => {
       hapticFeedback.error();
-      playSound.flightCrash(); // Use flight crash sound instead of regular crash
+      playSound.flightCrash(); // Plane flying away sound
       const { currentBet } = get();
       set((prev) => ({ 
         gameState: { 

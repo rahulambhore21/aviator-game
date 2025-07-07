@@ -18,7 +18,7 @@ export default function GameChart() {
   }, [multiplier, isActive, crashed, gameState.bettingPhase]);
 
   const getChartColor = () => {
-    if (crashed) return 'text-red-500';
+    if (crashed) return 'text-blue-400'; // Changed from red to blue for plane gone
     if (multiplier > 5) return 'text-purple-400';
     if (multiplier > 3) return 'text-blue-400';
     if (multiplier > 2) return 'text-green-400';
@@ -27,7 +27,7 @@ export default function GameChart() {
   };
 
   const getGradientColor = () => {
-    if (crashed) return 'from-red-500/40 via-red-400/20 to-transparent';
+    if (crashed) return 'from-blue-500/40 via-blue-400/20 to-transparent'; // Changed from red to blue
     if (multiplier > 5) return 'from-purple-500/40 via-purple-400/20 to-transparent';
     if (multiplier > 3) return 'from-blue-500/40 via-blue-400/20 to-transparent';
     if (multiplier > 2) return 'from-green-500/40 via-green-400/20 to-transparent';
@@ -45,6 +45,28 @@ export default function GameChart() {
 
   return (
     <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl p-4 sm:p-6 relative overflow-hidden border border-gray-700 shadow-2xl">
+      {/* Add CSS animation for plane flying away */}
+      <style jsx>{`
+        @keyframes flyAway {
+          0% { 
+            transform: translate(-50%, 50%) scale(1) rotate(0deg);
+            opacity: 0.8;
+          }
+          50% { 
+            transform: translate(200%, -100%) scale(0.5) rotate(15deg);
+            opacity: 0.4;
+          }
+          100% { 
+            transform: translate(400%, -200%) scale(0.2) rotate(30deg);
+            opacity: 0;
+          }
+        }
+        @keyframes fadeInOut {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 0.8; }
+        }
+      `}</style>
+
       {/* Animated Background */}
       <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-green-500/5 animate-pulse"></div>
       
@@ -92,11 +114,10 @@ export default function GameChart() {
         {/* Multiplier Display */}
         <div className="relative z-10 text-center">
           {crashed ? (
-            <div className="flex flex-col items-center animate-bounce">
-              <div className="text-6xl sm:text-8xl mb-2">💥</div>
-              <div className="text-red-400 text-2xl sm:text-4xl font-bold mb-2">CRASHED!</div>
-              <div className="text-red-300 text-lg sm:text-2xl font-semibold">
-                at {crashPoint?.toFixed(2)}x
+            <div className="flex flex-col items-center">
+              <div className="text-6xl sm:text-8xl mb-2">☁️</div>
+              <div className="text-blue-400 text-2xl sm:text-4xl font-bold mb-2">
+                {crashPoint?.toFixed(2)}x
               </div>
             </div>
           ) : (
@@ -104,13 +125,6 @@ export default function GameChart() {
               <div className={`text-5xl sm:text-8xl font-bold ${getChartColor()} transition-all duration-200 drop-shadow-2xl`}>
                 {multiplier.toFixed(2)}x
               </div>
-              {isActive && (
-                <div className="text-sm sm:text-base text-gray-400 mt-2 animate-pulse">
-                  {multiplier > 3 ? '🚀 TO THE MOON!' : 
-                   multiplier > 2 ? '⚡ GAINING SPEED!' : 
-                   multiplier > 1 ? '📈 CLIMBING...' : '🛫 TAKING OFF...'}
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -138,30 +152,33 @@ export default function GameChart() {
               ✈️
             </div>
             
-            {/* Speed Lines */}
+            {/* Speed Lines with enhanced visual */}
             {multiplier > 1.5 && (
               <div className="absolute right-8 top-1/2 transform -translate-y-1/2">
                 <div className="flex space-x-1">
-                  <div className="w-2 h-0.5 bg-white/40 animate-pulse"></div>
-                  <div className="w-1 h-0.5 bg-white/30 animate-pulse" style={{animationDelay: '0.1s'}}></div>
-                  <div className="w-1 h-0.5 bg-white/20 animate-pulse" style={{animationDelay: '0.2s'}}></div>
+                  <div className="w-3 h-0.5 bg-white/50 animate-pulse rounded-full"></div>
+                  <div className="w-2 h-0.5 bg-white/40 animate-pulse rounded-full" style={{animationDelay: '0.1s'}}></div>
+                  <div className="w-1 h-0.5 bg-white/30 animate-pulse rounded-full" style={{animationDelay: '0.2s'}}></div>
                 </div>
               </div>
             )}
           </div>
         )}
 
-        {/* Crash Explosion Effect */}
+        {/* Plane Flying Away Effect */}
         {crashed && (
           <div 
-            className="absolute animate-ping z-30"
+            className="absolute z-30"
             style={{ 
               left: `${Math.min((crashPoint! / 4) * 80, 80)}%`,
               bottom: `${Math.min((crashPoint! / 8) * 80, 80)}%`,
-              transform: 'translate(-50%, 50%)'
+              transform: 'translate(-50%, 50%)',
+              animation: 'flyAway 2s ease-out forwards'
             }}
           >
-            <div className="text-6xl sm:text-8xl text-red-500">💥</div>
+            <div className="text-6xl sm:text-8xl text-blue-400 opacity-80">✈️</div>
+            {/* Vapor trail effect */}
+            <div className="absolute top-1/2 left-0 w-8 h-1 bg-gradient-to-r from-blue-300/60 to-transparent transform -translate-y-1/2 animate-pulse"></div>
           </div>
         )}
 
@@ -180,63 +197,17 @@ export default function GameChart() {
         )}
       </div>
 
-      {/* Enhanced Status Bar */}
-      <div className="mt-4 px-2">
-        {gameState.bettingPhase && !isActive && (
-          <div className="flex items-center justify-center space-x-2 text-yellow-400 font-semibold text-sm sm:text-base">
-            <span className="animate-bounce">🎯</span>
-            <span>Betting Phase - Place your bets!</span>
-            <span className="animate-bounce">🎯</span>
-          </div>
-        )}
-        {isActive && !crashed && (
-          <div className="flex items-center justify-center space-x-2 text-green-400 font-semibold text-sm sm:text-base">
-            <span className="animate-pulse">🚀</span>
-            <span>Flight in progress... Cash out anytime!</span>
-            <span className="animate-pulse">🚀</span>
-          </div>
-        )}
-        {crashed && (
-          <div className="flex items-center justify-center space-x-2 text-red-400 font-semibold text-sm sm:text-base">
-            <span className="animate-bounce">💥</span>
-            <span>Flight crashed at {crashPoint?.toFixed(2)}x</span>
-            <span className="animate-bounce">💥</span>
-          </div>
-        )}
-      </div>
-
-      {/* Enhanced Current Bet Display */}
+      {/* Current Bet Display */}
       {currentBet && (
-        <div className="absolute top-4 left-4 bg-gradient-to-r from-gray-800/90 to-gray-700/90 backdrop-blur-sm px-4 py-3 rounded-xl border border-gray-600 z-30">
-          <div className="text-xs text-gray-300 mb-1">Your Bet</div>
-          <div className="text-lg font-bold text-white flex items-center space-x-1">
-            <span>🎲</span>
-            <span>{currentBet.amount}</span>
+        <div className="absolute top-4 left-4 bg-gray-800/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-gray-600 z-30">
+          <div className="text-lg font-bold text-white">
+            {currentBet.amount}
           </div>
           {currentBet.active && (
-            <div className="text-sm text-green-400 flex items-center space-x-1">
-              <span>💎</span>
-              <span>Win: {(currentBet.amount * multiplier).toFixed(0)}</span>
+            <div className="text-sm text-green-400">
+              {(currentBet.amount * multiplier).toFixed(0)}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Multiplier Milestones */}
-      {isActive && (
-        <div className="absolute right-4 bottom-4 text-xs text-gray-400 space-y-1">
-          <div className={`flex items-center space-x-1 ${multiplier >= 2 ? 'text-green-400' : ''}`}>
-            <span>{multiplier >= 2 ? '✅' : '⭕'}</span>
-            <span>2.00x</span>
-          </div>
-          <div className={`flex items-center space-x-1 ${multiplier >= 5 ? 'text-blue-400' : ''}`}>
-            <span>{multiplier >= 5 ? '✅' : '⭕'}</span>
-            <span>5.00x</span>
-          </div>
-          <div className={`flex items-center space-x-1 ${multiplier >= 10 ? 'text-purple-400' : ''}`}>
-            <span>{multiplier >= 10 ? '✅' : '⭕'}</span>
-            <span>10.0x</span>
-          </div>
         </div>
       )}
     </div>

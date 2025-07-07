@@ -2,113 +2,62 @@
 
 import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
+import api from '@/lib/api';
 
 interface AdminStats {
   totalUsers: number;
+  activeUsers: number;
   totalBets: number;
   totalVolume: number;
-  totalPayouts: number;
-  activeUsers: number;
-  recentRounds: Array<{
-    roundId: string;
-    crashPoint: number;
+  currentRound: {
+    id: string;
+    isActive: boolean;
     betsCount: number;
-    volume: number;
-    timestamp: string;
-  }>;
+    totalVolume: number;
+  };
 }
 
 export default function AdminDashboard() {
-  const { user, token } = useStore();
+  const { user, socket } = useStore();
   const [stats, setStats] = useState<AdminStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [manualCrash, setManualCrash] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user?.isAdmin) {
-      fetchAdminStats();
-    }
-  }, [user]);
+    fetchStats();
+  }, []);
 
-  const fetchAdminStats = async () => {
+  const fetchStats = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/admin/stats`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
+      const response = await api.get('/admin/stats');
+      setStats(response.data);
     } catch (error) {
-      console.error('Error fetching admin stats:', error);
-    } finally {
-      setLoading(false);
+      console.error('Failed to fetch admin stats:', error);
     }
   };
 
-  const handleStartRound = async () => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/admin/control`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ action: 'start' })
-      });
-      
-      if (response.ok) {
-        alert('Round started manually!');
-      }
-    } catch (error) {
-      console.error('Error starting round:', error);
+  const startRound = () => {
+    if (socket) {
+      socket.emit('admin-start-round');
     }
   };
 
-  const handlePauseRound = async () => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/admin/control`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ action: 'pause' })
-      });
-      
-      if (response.ok) {
-        alert('Round paused!');
-      }
-    } catch (error) {
-      console.error('Error pausing round:', error);
+  const pauseRound = () => {
+    if (socket) {
+      socket.emit('admin-pause-round');
     }
   };
 
-  const handleSetCrashPoint = async () => {
-    const crashPointStr = prompt('Enter crash point (e.g., 2.5):');
-    if (crashPointStr && !isNaN(Number(crashPointStr))) {
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/admin/control`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ action: 'setCrash', crashPoint: parseFloat(crashPointStr) })
-        });
-        
-        if (response.ok) {
-          alert(`Manual crash point set to ${crashPointStr}x`);
-        }
-      } catch (error) {
-        console.error('Error setting crash point:', error);
-      }
+  const setCrashPoint = () => {
+    const crashPoint = parseFloat(manualCrash);
+    if (socket && crashPoint > 1) {
+      socket.emit('admin-set-crash', { crashPoint });
+      setManualCrash('');
     }
   };
 
-  if (!user?.isAdmin) {
+  // Check if user is admin
+  if (!user || !user.isAdmin) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-white text-xl">Access Denied - Admin Only</div>
@@ -116,96 +65,117 @@ export default function AdminDashboard() {
     );
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-white mb-8">🎮 Admin Dashboard</h1>
-        
-        {/* Game Controls */}
+      <div className="container mx-auto">
         <div className="bg-gray-800 rounded-xl p-6 mb-6">
-          <h2 className="text-xl font-bold text-white mb-4">🎛️ Game Controls</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <h1 className="text-3xl font-bold text-white mb-4">🛠 Admin Dashboard</h1>
+          
+          {/* Quick Stats */}
+          {stats && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-gray-700 p-4 rounded-lg">
+                <div className="text-2xl font-bold text-blue-400">{stats.totalUsers}</div>
+                <div className="text-sm text-gray-400">Total Users</div>
+              </div>
+              <div className="bg-gray-700 p-4 rounded-lg">
+                <div className="text-2xl font-bold text-green-400">{stats.activeUsers}</div>
+                <div className="text-sm text-gray-400">Active Users</div>
+              </div>
+              <div className="bg-gray-700 p-4 rounded-lg">
+                <div className="text-2xl font-bold text-yellow-400">{stats.totalBets}</div>
+                <div className="text-sm text-gray-400">Total Bets</div>
+              </div>
+              <div className="bg-gray-700 p-4 rounded-lg">
+                <div className="text-2xl font-bold text-purple-400">
+                  {stats.totalVolume.toLocaleString()}
+                </div>
+                <div className="text-sm text-gray-400">Total Volume</div>
+              </div>
+            </div>
+          )}
+
+          {/* Game Controls */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Round Controls */}
+            <div className="bg-gray-700 p-4 rounded-lg">
+              <h3 className="text-xl font-bold text-white mb-4">🎮 Round Controls</h3>
+              
+              {stats?.currentRound && (
+                <div className="mb-4 p-3 bg-gray-600 rounded">
+                  <div className="text-white">Current Round: {stats.currentRound.id}</div>
+                  <div className="text-sm text-gray-300">
+                    Status: {stats.currentRound.isActive ? '🟢 Active' : '🔴 Inactive'}
+                  </div>
+                  <div className="text-sm text-gray-300">
+                    Bets: {stats.currentRound.betsCount} | 
+                    Volume: {stats.currentRound.totalVolume}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <button
+                  onClick={startRound}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded transition-colors"
+                >
+                  🚀 Start Round
+                </button>
+                <button
+                  onClick={pauseRound}
+                  className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded transition-colors"
+                >
+                  ⏸️ Pause Game
+                </button>
+              </div>
+            </div>
+
+            {/* Manual Crash Control */}
+            <div className="bg-gray-700 p-4 rounded-lg">
+              <h3 className="text-xl font-bold text-white mb-4">💥 Manual Crash</h3>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">
+                    Set Crash Point (1.0 - 100.0)
+                  </label>
+                  <input
+                    type="number"
+                    value={manualCrash}
+                    onChange={(e) => setManualCrash(e.target.value)}
+                    placeholder="e.g., 2.5"
+                    step="0.1"
+                    min="1"
+                    max="100"
+                    className="w-full px-3 py-2 bg-gray-600 text-white rounded border border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <button
+                  onClick={setCrashPoint}
+                  disabled={!manualCrash || parseFloat(manualCrash) < 1}
+                  className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white py-2 px-4 rounded transition-colors"
+                >
+                  🎯 Set Crash Point
+                </button>
+              </div>
+
+              <div className="mt-4 text-sm text-gray-400">
+                ⚠️ Use this to manually set when the next round will crash. 
+                Leave empty for random crash points.
+              </div>
+            </div>
+          </div>
+
+          {/* Refresh Stats */}
+          <div className="mt-6">
             <button
-              onClick={handleStartRound}
-              className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+              onClick={fetchStats}
+              className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
             >
-              🚀 Start Round
-            </button>
-            <button
-              onClick={handlePauseRound}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
-            >
-              ⏸️ Pause Round
-            </button>
-            <button
-              onClick={handleSetCrashPoint}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
-            >
-              🎯 Set Crash Point
+              🔄 Refresh Stats
             </button>
           </div>
         </div>
-
-        {/* Statistics */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-            <div className="bg-gray-800 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-gray-300 mb-2">Total Users</h3>
-              <p className="text-3xl font-bold text-blue-400">{stats.totalUsers}</p>
-            </div>
-            <div className="bg-gray-800 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-gray-300 mb-2">Total Bets</h3>
-              <p className="text-3xl font-bold text-green-400">{stats.totalBets}</p>
-            </div>
-            <div className="bg-gray-800 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-gray-300 mb-2">Total Volume</h3>
-              <p className="text-3xl font-bold text-yellow-400">{stats.totalVolume.toLocaleString()}</p>
-            </div>
-            <div className="bg-gray-800 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-gray-300 mb-2">Active Users</h3>
-              <p className="text-3xl font-bold text-purple-400">{stats.activeUsers}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Recent Rounds */}
-        {stats?.recentRounds && (
-          <div className="bg-gray-800 rounded-xl p-6">
-            <h2 className="text-xl font-bold text-white mb-4">📊 Recent Rounds</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-gray-700">
-                    <th className="text-gray-300 pb-2">Round ID</th>
-                    <th className="text-gray-300 pb-2">Crash Point</th>
-                    <th className="text-gray-300 pb-2">Bets</th>
-                    <th className="text-gray-300 pb-2">Volume</th>
-                    <th className="text-gray-300 pb-2">Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.recentRounds.map((round, index) => (
-                    <tr key={index} className="border-b border-gray-700">
-                      <td className="text-white py-2 font-mono text-sm">{round.roundId.slice(-8)}</td>
-                      <td className="text-white py-2 font-bold">{round.crashPoint.toFixed(2)}x</td>
-                      <td className="text-white py-2">{round.betsCount}</td>
-                      <td className="text-white py-2">{round.volume.toLocaleString()}</td>
-                      <td className="text-gray-400 py-2 text-sm">{new Date(round.timestamp).toLocaleTimeString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
