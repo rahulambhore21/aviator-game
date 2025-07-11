@@ -48,27 +48,6 @@ export default function WalletModal({ isOpen, onClose, mode }: WalletModalProps)
       console.error('Failed to fetch transactions:', error);
     }
   };
-          timestamp: '2024-01-19 15:22:00'
-        },
-        {
-          id: 'TXN-003',
-          type: 'deposit',
-          amount: 1000,
-          status: 'completed',
-          timestamp: '2024-01-19 14:22:00'
-        },
-        {
-          id: 'TXN-004',
-          type: 'withdrawal',
-          amount: 150,
-          status: 'rejected',
-          timestamp: '2024-01-18 11:45:00'
-        }
-      ]);
-    } catch (error) {
-      console.error('Failed to fetch transactions:', error);
-    }
-  };
 
   const quickAmounts = mode === 'deposit' 
     ? [100, 500, 1000, 5000, 10000]
@@ -101,11 +80,11 @@ export default function WalletModal({ isOpen, onClose, mode }: WalletModalProps)
       
       // Create new transaction
       const newTransaction: Transaction = {
-        id: 'TXN-' + Date.now(),
+        _id: 'TXN-' + Date.now(),
         type: mode === 'withdraw' ? 'withdrawal' : 'deposit',
         amount: numAmount,
         status: 'pending',
-        timestamp: new Date().toLocaleString()
+        createdAt: new Date().toLocaleString()
       };
 
       setTransactions(prev => [newTransaction, ...prev]);
@@ -281,7 +260,7 @@ export default function WalletModal({ isOpen, onClose, mode }: WalletModalProps)
             ) : (
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {transactions.map((transaction) => (
-                  <div key={transaction.id} className="bg-gray-700 rounded-lg p-4">
+                  <div key={transaction._id} className="bg-gray-700 rounded-lg p-4">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center space-x-2">
                         <span className={`px-2 py-1 rounded text-xs font-medium ${
@@ -297,24 +276,24 @@ export default function WalletModal({ isOpen, onClose, mode }: WalletModalProps)
                       </div>
                       
                       <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        transaction.status === 'completed' 
+                        transaction.status === 'approved' 
                           ? 'bg-green-600 text-white' 
                           : transaction.status === 'pending'
                           ? 'bg-yellow-600 text-white'
                           : 'bg-red-600 text-white'
                       }`}>
                         {transaction.status === 'pending' && '⏳ Pending'}
-                        {transaction.status === 'completed' && '✅ Completed'}
+                        {transaction.status === 'approved' && '✅ Approved'}
                         {transaction.status === 'rejected' && '❌ Rejected'}
                       </span>
                     </div>
                     
                     <div className="text-sm text-gray-400">
-                      {transaction.timestamp}
+                      {transaction.createdAt}
                     </div>
                     
                     <div className="text-sm text-gray-300 font-mono mt-1">
-                      ID: {transaction.id}
+                      ID: {transaction._id}
                     </div>
                   </div>
                 ))}
