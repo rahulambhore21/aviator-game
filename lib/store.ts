@@ -211,52 +211,87 @@ export const useStore = create<Store>((set, get) => ({
       }));
       
       if (currentBet?.active) {
-        // User lost the bet
-        set({ currentBet: null });
+        // Player lost their bet
+        const bet: Bet = {
+          id: `${Date.now()}`,
+          amount: currentBet.amount,
+          multiplier: 0,
+          payout: 0,
+          cashedOut: false,
+          roundId: get().gameState.roundId || '',
+          timestamp: new Date()
+        };
+        
+        set((prev) => ({
+          currentBet: null,
+          betHistory: [bet, ...prev.betHistory.slice(0, 49)]
+        }));
       }
     });
 
     socket.on('bet-placed', (data: { newBalance: number }) => {
       // Server confirms bet placement - sync balance with authoritative source
-      set((prev) => ({ 
-        user: prev.user ? { ...prev.user, balance: data.newBalance } as User : null
-      }));
+      const { user } = get();
+      if (user) {
+        const newAvailableBalance = data.newBalance - (user.reservedBalance || 0);
+        set((prev) => ({ 
+          user: prev.user ? { 
+            ...prev.user, 
+            balance: data.newBalance,
+            availableBalance: newAvailableBalance
+          } as User : null
+        }));
+      }
     });
 
     socket.on('error', (data: { message: string }) => {
+      console.error('Socket error:', data.message);
       // Server rejected bet or other error - restore optimistically deducted balance
       const { user, currentBet } = get();
-      if (user && currentBet && (data.message === 'Insufficient balance' || data.message === 'Failed to place bet' || data.message === 'Betting is closed' || data.message === 'Already placed a bet this round')) {
+      if (user && currentBet) {
+        const restoredBalance = user.balance + currentBet.amount;
+        const restoredAvailableBalance = restoredBalance - (user.reservedBalance || 0);
         set({ 
           currentBet: null,
-          user: { ...user, balance: user.balance + currentBet.amount }
+          user: {
+            ...user,
+            balance: restoredBalance,
+            availableBalance: restoredAvailableBalance
+          }
         });
       }
-      console.warn('Bet error:', data.message);
     });
 
     socket.on('cash-out-success', (data: { payout: number; multiplier: number; newBalance: number }) => {
       hapticFeedback.success();
-      const { currentBet } = get();
-      if (currentBet) {
-        get().addBetToHistory({
-          id: Date.now().toString(),
+      const { user, currentBet } = get();
+      if (user && currentBet) {
+        console.log('Cash out success - updating balance:', data.newBalance);
+        
+        // Calculate new available balance
+        const newAvailableBalance = data.newBalance - (user.reservedBalance || 0);
+        
+        // Add successful bet to history
+        const bet: Bet = {
+          id: `${Date.now()}`,
           amount: currentBet.amount,
           multiplier: data.multiplier,
           payout: data.payout,
           cashedOut: true,
           roundId: get().gameState.roundId || '',
-          timestamp: new Date(),
-        });
+          timestamp: new Date()
+        };
+        
+        set((prev) => ({
+          user: { 
+            ...user, 
+            balance: data.newBalance,
+            availableBalance: newAvailableBalance
+          } as User,
+          currentBet: null,
+          betHistory: [bet, ...prev.betHistory.slice(0, 49)]
+        }));
       }
-      
-      set({ 
-        currentBet: null,
-        user: get().user ? { 
-          ...get().user, 
-          balance: data.newBalance 
-        } as User : null
-      });
     });
 
     // Real-time transaction updates
@@ -268,18 +303,15 @@ export const useStore = create<Store>((set, get) => ({
       transaction: any 
     }) => {
       const { user } = get();
-      if (user && user.id === data.userId) {
-        // Update user balance
+      if (user && data.userId === user.id) {
+        const newAvailableBalance = data.newBalance - (user.reservedBalance || 0);
         set((prev) => ({
-          user: prev.user ? { ...prev.user, balance: data.newBalance } : null
+          user: prev.user ? {
+            ...prev.user,
+            balance: data.newBalance,
+            availableBalance: newAvailableBalance
+          } as User : null
         }));
-        
-        // Show notification about transaction status
-        if (typeof window !== 'undefined') {
-          const notification = `Transaction ${data.status}! Your balance has been updated.`;
-          // You can integrate with a toast library here
-          console.log(notification);
-        }
       }
     });
 
@@ -291,32 +323,21 @@ export const useStore = create<Store>((set, get) => ({
       reservedBalance?: number;
     }) => {
       const { user } = get();
-      if (user && user.id === data.userId) {
+      if (user && data.userId === user.id) {
+        console.log('Balance update received:', data);
         set((prev) => ({
-          user: prev.user ? { 
-            ...prev.user, 
+          user: prev.user ? {
+            ...prev.user,
             balance: data.newBalance,
-            availableBalance: data.availableBalance ?? data.newBalance,
-            reservedBalance: data.reservedBalance ?? 0
-          } : null
+            availableBalance: data.availableBalance ?? (data.newBalance - (data.reservedBalance || 0)),
+            reservedBalance: data.reservedBalance ?? prev.user.reservedBalance
+          } as User : null
         }));
       }
     });
 
     socket.on('round-ended', (data: { roundId: string; crashPoint: number }) => {
-      const { currentBet } = get();
-      if (currentBet?.active) {
-        // User lost the bet
-        get().addBetToHistory({
-          id: Date.now().toString(),
-          amount: currentBet.amount,
-          payout: 0,
-          cashedOut: false,
-          roundId: data.roundId,
-          timestamp: new Date(),
-        });
-        set({ currentBet: null });
-      }
+      console.log('Round ended:', data);
     });
 
     socket.on('bet-cancelled-success', (data: { 
@@ -324,15 +345,19 @@ export const useStore = create<Store>((set, get) => ({
       availableBalance?: number; 
       reservedBalance?: number; 
     }) => {
-      // Server confirms bet cancellation - sync balance with authoritative source
-      set((prev) => ({ 
-        user: prev.user ? { 
-          ...prev.user, 
-          balance: data.newBalance,
-          availableBalance: data.availableBalance ?? (data.newBalance - (prev.user.reservedBalance || 0)),
-          reservedBalance: data.reservedBalance ?? prev.user.reservedBalance
-        } as User : null
-      }));
+      const { user } = get();
+      if (user) {
+        console.log('Bet cancelled, restoring balance:', data);
+        set((prev) => ({
+          user: prev.user ? {
+            ...prev.user,
+            balance: data.newBalance,
+            availableBalance: data.availableBalance ?? (data.newBalance - (data.reservedBalance || 0)),
+            reservedBalance: data.reservedBalance ?? prev.user.reservedBalance
+          } as User : null,
+          currentBet: null
+        }));
+      }
     });
 
     set({ socket });

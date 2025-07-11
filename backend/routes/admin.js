@@ -281,18 +281,6 @@ router.get('/transactions', authMiddleware, adminMiddleware, async (req, res) =>
   }
 });
     
-    res.json({
-      transactions,
-      pagination: {
-        current: page,
-        pages: Math.ceil(total / limit),
-        total
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
 
 router.post('/transactions/:transactionId/process', authMiddleware, adminMiddleware, async (req, res) => {
   try {

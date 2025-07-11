@@ -43,12 +43,12 @@ export default function Header() {
                 {/* Balance Display */}
                 <div className="bg-gray-700/50 px-2 sm:px-3 py-1 sm:py-2 rounded-lg">
                   <div className="text-green-400 font-bold text-sm sm:text-lg">
-                    {(user.availableBalance ?? user.balance)?.toLocaleString() || 0}
+                    💰 {(user.availableBalance ?? user.balance ?? 0).toLocaleString()}
                   </div>
                   <div className="text-xs text-gray-400 hidden sm:block">
                     {user.reservedBalance && user.reservedBalance > 0 
                       ? `${user.reservedBalance.toLocaleString()} reserved`
-                      : 'Available'
+                      : 'Available balance'
                     }
                   </div>
                 </div>

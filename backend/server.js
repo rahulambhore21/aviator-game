@@ -1,4 +1,10 @@
-require('dotenv').config();
+// Load environment variables based on NODE_ENV
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config({ path: '.env.dev' });
+} else {
+  require('dotenv').config();
+}
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -124,6 +130,16 @@ io.on('connection', (socket) => {
         await bet.save();
 
         socket.emit('bet-placed', { newBalance: user.balance });
+
+        // Emit real-time balance update
+        if (global.io) {
+          global.io.emit('balance-update', {
+            userId: socket.userId,
+            newBalance: user.balance,
+            availableBalance: user.getAvailableBalance(),
+            reservedBalance: user.reservedBalance
+          });
+        }
       } else {
         socket.emit('error', { message: result.message });
       }
@@ -149,15 +165,28 @@ io.on('connection', (socket) => {
           { 
             status: 'cashed_out',
             multiplier: result.multiplier,
-            payout: result.payout
+            payout: result.payout,
+            cashedOut: true,
+            cashOutTime: new Date()
           }
         );
 
+        // Send success response with balance info
         socket.emit('cash-out-success', {
           payout: result.payout,
           multiplier: result.multiplier,
           newBalance: user.balance
         });
+
+        // Emit real-time balance update to all user's connections
+        if (global.io) {
+          global.io.emit('balance-update', {
+            userId: socket.userId,
+            newBalance: user.balance,
+            availableBalance: user.getAvailableBalance(),
+            reservedBalance: user.reservedBalance
+          });
+        }
       } else {
         socket.emit('error', { message: result.message });
       }
