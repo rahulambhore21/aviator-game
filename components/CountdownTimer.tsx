@@ -9,7 +9,7 @@ export default function CountdownTimer() {
   if (!bettingPhase || timeRemaining <= 0) return null;
 
   const seconds = Math.ceil(timeRemaining / 1000);
-  const progress = ((5000 - timeRemaining) / 5000) * 100;
+  const progress = ((7000 - timeRemaining) / 7000) * 100;
 
   return (
     <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-40 bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg">

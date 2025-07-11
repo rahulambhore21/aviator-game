@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 const authRoutes = require('./routes/auth');
 const gameRoutes = require('./routes/game');
 const adminRoutes = require('./routes/admin');
+const walletRoutes = require('./routes/wallet');
 const GameEngine = require('./gameEngine');
 const User = require('./models/User');
 const Bet = require('./models/Bet');
@@ -22,6 +23,9 @@ const io = socketIo(server, {
     credentials: true
   }
 });
+
+// Make IO available globally for real-time updates
+global.io = io;
 
 // Middleware
 app.use(cors({
@@ -38,6 +42,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/crashgame
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
+app.use('/api/wallet', walletRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Health check
@@ -47,6 +52,9 @@ app.get('/health', (req, res) => {
 
 // Initialize game engine
 const gameEngine = new GameEngine(io);
+
+// Make game engine available to admin routes
+app.locals.gameEngine = gameEngine;
 
 // Socket authentication middleware
 io.use(async (socket, next) => {
@@ -84,8 +92,10 @@ io.on('connection', (socket) => {
       const { amount } = data;
       const user = await User.findById(socket.userId);
 
-      if (!user || user.balance < amount) {
-        socket.emit('error', { message: 'Insufficient balance' });
+      if (!user || user.getAvailableBalance() < amount) {
+        socket.emit('error', { 
+          message: `Insufficient available balance. Available: ${user ? user.getAvailableBalance() : 0} coins${user && user.reservedBalance > 0 ? ` (${user.reservedBalance} coins reserved)` : ''}` 
+        });
         return;
       }
 
@@ -146,6 +156,46 @@ io.on('connection', (socket) => {
     } catch (error) {
       console.error('Cash out error:', error);
       socket.emit('error', { message: 'Failed to cash out' });
+    }
+  });
+
+  // Handle bet cancellation
+  socket.on('bet-cancelled', async (data) => {
+    try {
+      const { amount, roundId } = data;
+      const user = await User.findById(socket.userId);
+
+      // Verify the bet exists and can be cancelled
+      if (!user || gameEngine.gameState.isActive) {
+        socket.emit('error', { message: 'Cannot cancel bet at this time' });
+        return;
+      }
+
+      // Remove bet from game engine
+      const removed = gameEngine.activeBets.delete(socket.userId);
+      
+      if (removed) {
+        // Restore user balance
+        user.balance += amount;
+        await user.save();
+
+        // Remove or update bet record
+        await Bet.findOneAndUpdate(
+          { user: user._id, roundId: roundId, status: 'active' },
+          { status: 'cancelled' }
+        );
+
+        socket.emit('bet-cancelled-success', { 
+          newBalance: user.balance,
+          availableBalance: user.getAvailableBalance(),
+          reservedBalance: user.reservedBalance
+        });
+      } else {
+        socket.emit('error', { message: 'No active bet to cancel' });
+      }
+    } catch (error) {
+      console.error('Bet cancellation error:', error);
+      socket.emit('error', { message: 'Failed to cancel bet' });
     }
   });
 

@@ -74,6 +74,24 @@ export default function GameChart() {
         }
       `}</style>
 
+      {/* Countdown Timer */}
+      {gameState.bettingPhase && gameState.timeRemaining > 0 && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-40 bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg">
+          <div className="text-center">
+            <div className="text-lg sm:text-xl font-bold">⏰ {Math.ceil(gameState.timeRemaining / 1000)}s</div>
+            <div className="text-xs sm:text-sm">Betting closes in</div>
+            
+            {/* Progress bar */}
+            <div className="w-20 sm:w-24 h-1 bg-yellow-800 rounded-full mt-2 overflow-hidden">
+              <div 
+                className="h-full bg-yellow-300 transition-all duration-100 ease-linear"
+                style={{ width: `${((5000 - gameState.timeRemaining) / 5000) * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-green-500/5 animate-pulse"></div>
 
       <div className="absolute inset-0 opacity-20">

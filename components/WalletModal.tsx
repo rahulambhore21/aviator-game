@@ -2,13 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
+import { walletAPI } from '@/lib/api';
 
 interface Transaction {
-  id: string;
+  _id: string;
   type: 'deposit' | 'withdrawal';
   amount: number;
-  status: 'pending' | 'completed' | 'rejected';
-  timestamp: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reference?: string;
+  createdAt: string;
+  adminNotes?: string;
 }
 
 interface WalletModalProps {
@@ -18,8 +21,9 @@ interface WalletModalProps {
 }
 
 export default function WalletModal({ isOpen, onClose, mode }: WalletModalProps) {
-  const { user, setUser } = useStore();
+  const { user } = useStore();
   const [amount, setAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -29,25 +33,21 @@ export default function WalletModal({ isOpen, onClose, mode }: WalletModalProps)
   useEffect(() => {
     if (isOpen) {
       fetchTransactions();
+      setAmount('');
+      setPaymentMethod('');
+      setError('');
+      setSuccess('');
     }
   }, [isOpen]);
 
   const fetchTransactions = async () => {
     try {
-      // Mock user transactions - replace with real API call
-      setTransactions([
-        {
-          id: 'TXN-001',
-          type: 'deposit',
-          amount: 500,
-          status: 'pending',
-          timestamp: '2024-01-20 10:30:00'
-        },
-        {
-          id: 'TXN-002',
-          type: 'withdrawal',
-          amount: 200,
-          status: 'completed',
+      const response = await walletAPI.getHistory();
+      setTransactions(response.transactions || []);
+    } catch (error: any) {
+      console.error('Failed to fetch transactions:', error);
+    }
+  };
           timestamp: '2024-01-19 15:22:00'
         },
         {
@@ -292,7 +292,7 @@ export default function WalletModal({ isOpen, onClose, mode }: WalletModalProps)
                           {transaction.type === 'deposit' ? '⬇️ Deposit' : '⬆️ Withdrawal'}
                         </span>
                         <span className="text-white font-bold">
-                          {transaction.amount.toLocaleString()} coins
+                          {transaction.amount?.toLocaleString() || '0'} coins
                         </span>
                       </div>
                       

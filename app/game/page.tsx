@@ -6,7 +6,6 @@ import { useStore } from '@/lib/store';
 import Header from '@/components/Header';
 import GameChart from '@/components/GameChart';
 import BettingPanel from '@/components/BettingPanel';
-import CountdownTimer from '@/components/CountdownTimer';
 import RecentCrashes from '@/components/RecentCrashes';
 import { useState } from 'react';
 
@@ -65,8 +64,8 @@ export default function GamePage() {
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
         <div className="xl:grid xl:grid-cols-4 xl:gap-6 space-y-4 xl:space-y-0">
           
-          {/* Left Side - Current Round Bets */}
-          <div className="order-2 xl:order-1 space-y-4">
+          {/* Left Side - Current Round Bets (Hidden on Mobile) */}
+          <div className="order-2 xl:order-1 space-y-4 hidden xl:block">
             {/* Current Round Bets */}
             <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4">
               <h3 className="text-lg font-bold text-white mb-4">🎲 Current Round Bets</h3>
@@ -117,9 +116,6 @@ export default function GamePage() {
 
           {/* Right Side - Game Chart and Betting Panel */}
           <div className="order-1 xl:order-2 xl:col-span-3 space-y-4">
-            {/* Countdown Timer */}
-            <CountdownTimer />
-            
             {/* Recent Crashes */}
             <RecentCrashes />
             

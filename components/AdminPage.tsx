@@ -1,22 +1,27 @@
 'use client';
 
-import { useState } from 'react';
-import AdminLogin from '@/components/AdminLogin';
-import AdminDashboard from '@/components/AdminDashboard';
+import { useState, useEffect } from 'react';
+import { useAdminStore } from '@/lib/adminStore';
+import AdminLoginNew from '@/components/AdminLoginNew';
+import AdminDashboardNew from '@/components/AdminDashboardNew';
 
 export default function AdminPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isAuthenticated, logout, initializeAuth } = useAdminStore();
+
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
 
   const handleAdminLogin = () => {
-    setIsAuthenticated(true);
+    // Login is handled in the AdminStore
   };
 
   const handleLogout = () => {
-    setIsAuthenticated(false);
+    logout();
   };
 
   if (!isAuthenticated) {
-    return <AdminLogin onSuccess={handleAdminLogin} />;
+    return <AdminLoginNew onSuccess={handleAdminLogin} />;
   }
 
   return (
@@ -29,23 +34,25 @@ export default function AdminPage() {
             <div className="flex items-center space-x-3">
               <div className="text-2xl">🛠️</div>
               <h1 className="text-xl font-bold text-white">Admin Panel</h1>
+              <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded">
+                Aviator Crash Game
+              </span>
             </div>
 
             {/* Logout */}
             <button
               onClick={handleLogout}
-              className="text-gray-400 hover:text-white transition-colors text-sm bg-gray-700 px-3 py-2 rounded"
+              className="text-gray-400 hover:text-white transition-colors text-sm bg-gray-700 px-3 py-2 rounded flex items-center space-x-2"
             >
-              🚪 Logout
+              <span>🚪</span>
+              <span>Logout</span>
             </button>
           </div>
         </div>
       </header>
 
       {/* Admin Dashboard Content */}
-      <div className="p-6">
-        <AdminDashboard />
-      </div>
+      <AdminDashboardNew />
     </div>
   );
 }

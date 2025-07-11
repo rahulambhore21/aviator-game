@@ -79,6 +79,44 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Admin Login
+router.post('/admin-login', async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    // Find admin user
+    const admin = await User.findOne({ email: 'admin@crashgame.com', isAdmin: true });
+    if (!admin) {
+      return res.status(400).json({ message: 'Admin user not found' });
+    }
+
+    // Check password
+    const isMatch = await admin.comparePassword(password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid admin password' });
+    }
+
+    // Generate JWT
+    const token = jwt.sign(
+      { userId: admin._id },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      token,
+      user: {
+        id: admin._id,
+        email: admin.email,
+        balance: admin.balance,
+        isAdmin: admin.isAdmin
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Get Profile
 router.get('/profile', authMiddleware, async (req, res) => {
   try {

@@ -7,6 +7,8 @@ interface User {
   id: string;
   email: string;
   balance: number;
+  reservedBalance?: number;
+  availableBalance?: number;
   isAdmin?: boolean;
 }
 
@@ -100,11 +102,26 @@ export const useStore = create<Store>((set, get) => ({
 
   placeBet: (amount) => {
     const { user, socket } = get();
-    if (!user || !socket || user.balance < amount) return;
+    const availableBalance = user?.availableBalance ?? user?.balance ?? 0;
+    if (!user || !socket || availableBalance < amount) return;
     
     hapticFeedback.bet();
     playSound.bet();
-    set({ currentBet: { amount, active: true } });
+    
+    // Optimistically deduct from balance for UI responsiveness
+    // Calculate new available balance considering reserved amount
+    const newBalance = user.balance - amount;
+    const newAvailableBalance = newBalance - (user.reservedBalance || 0);
+    
+    set({ 
+      currentBet: { amount, active: true },
+      user: { 
+        ...user, 
+        balance: newBalance,
+        availableBalance: newAvailableBalance
+      }
+    });
+    
     socket.emit('place-bet', { amount });
   },
 
@@ -128,13 +145,20 @@ export const useStore = create<Store>((set, get) => ({
     try {
       hapticFeedback.light();
       
-      // Return bet amount to user balance
+      // Optimistically restore balance for immediate UI feedback
+      const restoredBalance = user.balance + currentBet.amount;
+      const restoredAvailableBalance = restoredBalance - (user.reservedBalance || 0);
+      
       set({ 
         currentBet: null,
-        user: { ...user, balance: user.balance + currentBet.amount }
+        user: {
+          ...user,
+          balance: restoredBalance,
+          availableBalance: restoredAvailableBalance
+        }
       });
       
-      // Notify server
+      // Notify server - server response will sync the final balance state
       socket.emit('bet-cancelled', {
         userId: user.id,
         amount: currentBet.amount,
@@ -193,9 +217,22 @@ export const useStore = create<Store>((set, get) => ({
     });
 
     socket.on('bet-placed', (data: { newBalance: number }) => {
+      // Server confirms bet placement - sync balance with authoritative source
       set((prev) => ({ 
         user: prev.user ? { ...prev.user, balance: data.newBalance } as User : null
       }));
+    });
+
+    socket.on('error', (data: { message: string }) => {
+      // Server rejected bet or other error - restore optimistically deducted balance
+      const { user, currentBet } = get();
+      if (user && currentBet && (data.message === 'Insufficient balance' || data.message === 'Failed to place bet' || data.message === 'Betting is closed' || data.message === 'Already placed a bet this round')) {
+        set({ 
+          currentBet: null,
+          user: { ...user, balance: user.balance + currentBet.amount }
+        });
+      }
+      console.warn('Bet error:', data.message);
     });
 
     socket.on('cash-out-success', (data: { payout: number; multiplier: number; newBalance: number }) => {
@@ -222,6 +259,50 @@ export const useStore = create<Store>((set, get) => ({
       });
     });
 
+    // Real-time transaction updates
+    socket.on('transaction-update', (data: { 
+      userId: string; 
+      transactionId: string; 
+      status: string; 
+      newBalance: number; 
+      transaction: any 
+    }) => {
+      const { user } = get();
+      if (user && user.id === data.userId) {
+        // Update user balance
+        set((prev) => ({
+          user: prev.user ? { ...prev.user, balance: data.newBalance } : null
+        }));
+        
+        // Show notification about transaction status
+        if (typeof window !== 'undefined') {
+          const notification = `Transaction ${data.status}! Your balance has been updated.`;
+          // You can integrate with a toast library here
+          console.log(notification);
+        }
+      }
+    });
+
+    // Real-time balance updates
+    socket.on('balance-update', (data: { 
+      userId: string; 
+      newBalance: number;
+      availableBalance?: number;
+      reservedBalance?: number;
+    }) => {
+      const { user } = get();
+      if (user && user.id === data.userId) {
+        set((prev) => ({
+          user: prev.user ? { 
+            ...prev.user, 
+            balance: data.newBalance,
+            availableBalance: data.availableBalance ?? data.newBalance,
+            reservedBalance: data.reservedBalance ?? 0
+          } : null
+        }));
+      }
+    });
+
     socket.on('round-ended', (data: { roundId: string; crashPoint: number }) => {
       const { currentBet } = get();
       if (currentBet?.active) {
@@ -236,6 +317,22 @@ export const useStore = create<Store>((set, get) => ({
         });
         set({ currentBet: null });
       }
+    });
+
+    socket.on('bet-cancelled-success', (data: { 
+      newBalance: number; 
+      availableBalance?: number; 
+      reservedBalance?: number; 
+    }) => {
+      // Server confirms bet cancellation - sync balance with authoritative source
+      set((prev) => ({ 
+        user: prev.user ? { 
+          ...prev.user, 
+          balance: data.newBalance,
+          availableBalance: data.availableBalance ?? (data.newBalance - (prev.user.reservedBalance || 0)),
+          reservedBalance: data.reservedBalance ?? prev.user.reservedBalance
+        } as User : null
+      }));
     });
 
     set({ socket });

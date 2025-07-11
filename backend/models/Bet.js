@@ -25,7 +25,7 @@ const betSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['active', 'cashed_out', 'lost'],
+    enum: ['active', 'cashed_out', 'lost', 'cancelled'],
     default: 'active'
   },
   cashedOut: {

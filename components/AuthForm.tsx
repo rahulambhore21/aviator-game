@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { authAPI } from '@/lib/api';
+import { userAuthAPI } from '@/lib/userAPI';
 
 interface AuthFormProps {
   mode: 'login' | 'register';
@@ -25,9 +25,9 @@ export default function AuthForm({ mode, onToggle }: AuthFormProps) {
     try {
       let response;
       if (mode === 'login') {
-        response = await authAPI.login({ email, password });
+        response = await userAuthAPI.login({ email, password });
       } else {
-        response = await authAPI.register({ email, password });
+        response = await userAuthAPI.register({ email, password });
       }
 
       // Check if response has the expected structure
