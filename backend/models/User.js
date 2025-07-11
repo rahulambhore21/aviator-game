@@ -14,6 +14,11 @@ const userSchema = new mongoose.Schema({
     required: true,
     minlength: 6
   },
+  address: {
+    type: String,
+    sparse: true, // This allows multiple null values
+    trim: true
+  },
   balance: {
     type: Number,
     default: 10000 // Starting balance of 10,000 coins
@@ -83,5 +88,8 @@ userSchema.methods.reserveAmount = function(amount) {
 userSchema.methods.releaseReservedAmount = function(amount) {
   this.reservedBalance = Math.max(0, this.reservedBalance - amount);
 };
+
+// Create a sparse unique index for address field to allow multiple null values
+userSchema.index({ address: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('User', userSchema);
