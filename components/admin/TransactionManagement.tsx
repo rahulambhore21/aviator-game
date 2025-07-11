@@ -163,16 +163,18 @@ export default function TransactionManagement() {
                     </td>
                   </tr>
                 ))
-              ) : (
-                transactions.map((transaction) => (
+              ) : transactions.length > 0 ? (
+                transactions.filter(transaction => transaction && transaction._id).map((transaction) => (
                   <tr key={transaction._id} className="border-b border-gray-700 hover:bg-gray-750">
                     <td className="py-4 px-4">
                       <div className="flex items-center space-x-3">
                         <span className="text-2xl">{getTypeIcon(transaction.type)}</span>
                         <div>
-                          <div className="text-white font-medium">{transaction.user.email || 'Unknown user'}</div>
+                          <div className="text-white font-medium">
+                            {transaction.user?.email || 'Unknown user'}
+                          </div>
                           <div className="text-gray-400 text-sm capitalize">
-                            {transaction.type}
+                            {transaction.type || 'Unknown type'}
                           </div>
                           {transaction.reference && (
                             <div className="text-gray-500 text-xs font-mono">
@@ -198,7 +200,7 @@ export default function TransactionManagement() {
                       </span>
                       {transaction.processedBy && (
                         <div className="text-gray-400 text-xs mt-1">
-                          by {transaction.processedBy.email || 'Unknown user'}
+                          by {transaction.processedBy?.email || 'Unknown admin'}
                         </div>
                       )}
                     </td>
@@ -247,6 +249,12 @@ export default function TransactionManagement() {
                     </td>
                   </tr>
                 ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-gray-400">
+                    No transactions found
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>

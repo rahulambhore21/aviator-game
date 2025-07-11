@@ -227,6 +227,8 @@ router.get('/transactions', authMiddleware, adminMiddleware, async (req, res) =>
     const status = req.query.status || '';
     const type = req.query.type || '';
     
+    console.log('📋 Fetching transactions with filters:', { page, limit, status, type });
+    
     const query = {};
     if (status) query.status = status;
     if (type) query.type = type;
@@ -239,6 +241,45 @@ router.get('/transactions', authMiddleware, adminMiddleware, async (req, res) =>
       .skip((page - 1) * limit);
       
     const total = await Transaction.countDocuments(query);
+    
+    console.log(`📊 Found ${transactions.length} transactions out of ${total} total`);
+    
+    // Ensure proper structure for frontend with better error handling
+    const formattedTransactions = transactions.map(transaction => {
+      const formatted = {
+        _id: transaction._id,
+        user: transaction.user ? { email: transaction.user.email } : { email: 'Unknown user' },
+        type: transaction.type,
+        amount: transaction.amount,
+        status: transaction.status,
+        paymentMethod: transaction.paymentMethod || null,
+        adminNotes: transaction.adminNotes || null,
+        processedBy: transaction.processedBy ? { email: transaction.processedBy.email } : null,
+        processedAt: transaction.processedAt,
+        reference: transaction.reference,
+        createdAt: transaction.createdAt
+      };
+      
+      if (!transaction.user) {
+        console.warn(`⚠️ Transaction ${transaction._id} has no user populated`);
+      }
+      
+      return formatted;
+    });
+    
+    res.json({
+      transactions: formattedTransactions,
+      pagination: {
+        current: page,
+        pages: Math.ceil(total / limit),
+        total
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching transactions:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
     
     res.json({
       transactions,

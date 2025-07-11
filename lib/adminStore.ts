@@ -87,13 +87,13 @@ interface User {
 
 interface Transaction {
   _id: string;
-  user: { email: string };
+  user: { email: string } | null;
   type: 'deposit' | 'withdrawal';
   amount: number;
   status: 'pending' | 'approved' | 'rejected';
   paymentMethod?: string;
   adminNotes?: string;
-  processedBy?: { email: string };
+  processedBy?: { email: string } | null;
   processedAt?: string;
   reference?: string;
   createdAt: string;

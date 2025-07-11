@@ -25,6 +25,11 @@ const transactionSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  reference: {
+    type: String,
+    unique: true,
+    required: true
+  },
   adminNotes: {
     type: String,
     default: null
@@ -37,10 +42,6 @@ const transactionSchema = new mongoose.Schema({
   processedAt: {
     type: Date,
     default: null
-  },
-  reference: {
-    type: String,
-    default: null
   }
 }, {
   timestamps: true
@@ -49,5 +50,6 @@ const transactionSchema = new mongoose.Schema({
 // Index for efficient queries
 transactionSchema.index({ user: 1, createdAt: -1 });
 transactionSchema.index({ status: 1, createdAt: -1 });
+transactionSchema.index({ type: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Transaction', transactionSchema);
