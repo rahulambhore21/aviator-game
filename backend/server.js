@@ -18,7 +18,11 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin:'*',
+    origin: [
+      process.env.FRONTEND_URL || "https://aviator-game-rahul.vercel.app",
+      "http://localhost:3000",
+      "https://aviator-game-rahul.vercel.app"
+    ],
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -29,7 +33,11 @@ global.io = io;
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  origin: [
+    process.env.FRONTEND_URL || "https://aviator-game-rahul.vercel.app",
+    "http://localhost:3000",
+    "https://aviator-game-rahul.vercel.app"
+  ],
   credentials: true
 }));
 app.use(express.json());

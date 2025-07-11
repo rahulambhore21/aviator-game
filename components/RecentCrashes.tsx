@@ -15,7 +15,7 @@ export default function RecentCrashes() {
 
   // Connect to socket for crash history updates (even without login)
   useEffect(() => {
-    const socket = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3002');
+    const socket = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'https://aviator-game-lzz1.onrender.com');
 
     // Listen for crash history updates
     socket.on('history-update', (history: Array<{ crashPoint: number }>) => {
