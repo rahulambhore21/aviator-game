@@ -79,37 +79,21 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Admin Login with hardcoded credentials
+// Admin Login
 router.post('/admin-login', async (req, res) => {
   try {
     const { password } = req.body;
 
-    // ===== HARDCODED ADMIN CREDENTIALS =====
-    // Change these credentials as needed - no database or .env required
-    const ADMIN_CREDENTIALS = {
-      email: 'admin@crashgame.com',
-      password: 'admin123'  // Change this password whenever you want
-    };
-    // =====================================
-
-    // Check hardcoded password
-    if (password !== ADMIN_CREDENTIALS.password) {
-      return res.status(400).json({ message: 'Invalid admin password' });
+    // Find admin user
+    const admin = await User.findOne({ email: 'admin@crashgame.com', isAdmin: true });
+    if (!admin) {
+      return res.status(400).json({ message: 'Admin user not found' });
     }
 
-    // Try to find existing admin user, create if doesn't exist
-    let admin = await User.findOne({ email: ADMIN_CREDENTIALS.email, isAdmin: true });
-    
-    if (!admin) {
-      // Create admin user if doesn't exist
-      admin = new User({
-        email: ADMIN_CREDENTIALS.email,
-        password: ADMIN_CREDENTIALS.password, // This will be hashed by the pre-save hook
-        isAdmin: true,
-        balance: 100000
-      });
-      await admin.save();
-      console.log('✅ Admin user created with hardcoded credentials');
+    // Check password
+    const isMatch = await admin.comparePassword(password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid admin password' });
     }
 
     // Generate JWT
