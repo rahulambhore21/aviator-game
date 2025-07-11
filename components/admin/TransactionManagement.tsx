@@ -170,7 +170,7 @@ export default function TransactionManagement() {
                       <div className="flex items-center space-x-3">
                         <span className="text-2xl">{getTypeIcon(transaction.type)}</span>
                         <div>
-                          <div className="text-white font-medium">{transaction.user.email}</div>
+                          <div className="text-white font-medium">{transaction.user.email || 'Unknown user'}</div>
                           <div className="text-gray-400 text-sm capitalize">
                             {transaction.type}
                           </div>
@@ -198,7 +198,7 @@ export default function TransactionManagement() {
                       </span>
                       {transaction.processedBy && (
                         <div className="text-gray-400 text-xs mt-1">
-                          by {transaction.processedBy.email}
+                          by {transaction.processedBy.email || 'Unknown user'}
                         </div>
                       )}
                     </td>
@@ -291,7 +291,7 @@ export default function TransactionManagement() {
               <div className="flex items-center space-x-3 mb-3">
                 <span className="text-2xl">{getTypeIcon(selectedTransaction.type)}</span>
                 <div>
-                  <div className="text-white font-medium">{selectedTransaction.user.email}</div>
+                  <div className="text-white font-medium">{selectedTransaction.user.email|| 'Unknown user'}</div>
                   <div className="text-gray-400 text-sm capitalize">
                     {selectedTransaction.type} • {selectedTransaction.amount.toLocaleString()} coins
                   </div>
